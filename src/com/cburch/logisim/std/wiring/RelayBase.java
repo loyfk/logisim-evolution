@@ -3,6 +3,7 @@ package com.cburch.logisim.std.wiring;
 import com.cburch.logisim.data.*;
 import com.cburch.logisim.instance.*;
 import com.cburch.logisim.tools.key.BitWidthConfigurator;
+import com.cburch.logisim.util.GraphicsUtil;
 import com.cburch.logisim.util.Icons;
 import com.cburch.logisim.util.StringGetter;
 
@@ -94,6 +95,7 @@ public abstract class RelayBase extends InstanceFactory {
         Graphics2D g = (Graphics2D) painter.getGraphics();
         Location loc = painter.getLocation();
 
+        Object powerLoc = painter.getAttributeValue(Wiring.ATTR_GATE);
         Object polesVal = painter.getAttributeValue(ATTR_POLES);
         Object throwsVal = painter.getAttributeValue(ATTR_THROWS);
 
@@ -107,29 +109,52 @@ public abstract class RelayBase extends InstanceFactory {
         g.translate(loc.getX(), loc.getY());
         g.rotate(radians);
 
-        g.drawRect(0, 0, 40, (portsInfo.inputs - 1) * LATCH_SIZE);
+        GraphicsUtil.switchToWidth(g, 2);
 
-        for (int n = 1; n < portsInfo.inputs - 1; n++) {
-            int y = LATCH_SIZE * n;
-            g.drawLine(0, y, 40, y);
+        int height = (portsInfo.inputs - 1) * LATCH_SIZE;
+        int bs = powerLoc == Wiring.GATE_TOP_LEFT ? 10 : 0;
+        g.drawRect(10, bs, 40, height);
+
+        painter.getPortValue(COIL);
+        int latch = getLatchStatus(painter, false);
+
+        for (int n = 0; n < portsInfo.inputs - 1; n++) {
+            int y = LATCH_SIZE * n + bs;
+            if (y > 0) {
+                g.drawLine(10, y, 50, y);
+            }
+
+            int y2 = y + LATCH_SIZE / 2;
+            int ys = 10;
+            g.drawLine(0, y2, 20, y2);
+            if (throwsVal == THROWS_SINGLE) {
+                g.drawLine(40, y2, 60, y2);
+                if (latch == LATCH_OPEN) {
+                    g.drawLine(20, y2, 40, y2 - ys);
+                } else {
+                    g.drawLine(20, y2, 40, y2);
+                }
+            } else {
+                g.drawLine(40, y2 - ys, 60, y2 - ys);
+                g.drawLine(40, y2 + ys, 60, y2 + ys);
+                if (latch == LATCH_OPEN) {
+                    g.drawLine(20, y2, 40, y2 - ys);
+                } else {
+                    g.drawLine(20, y2, 40, y2 + ys);
+                }
+            }
+        }
+
+        if (powerLoc == Wiring.GATE_TOP_LEFT) {
+            g.drawLine(30, 0, 30, 10);
+        } else {
+            g.drawLine(30, height, 30, height + 10);
         }
 
         g.translate(-loc.getX(), -loc.getY());
 
         if (!isGhost) {
             painter.drawPorts();
-//            painter.drawPort(COIL, "C", Direction.SOUTH);
-//            for (int in = 1; in < portsInfo.inputs; in++) {
-//                painter.drawPort(in, String.format("I%d", in), Direction.EAST);
-//            }
-//            int offset = portsInfo.inputs;
-//            for (int out = 0; out < portsInfo.outputs; out++) {
-//                if (throwsVal == THROWS_DOUBLE && out % 2 == 1) {
-//                    painter.drawPort(offset + out, String.format("-O%d", out - 1), Direction.WEST);
-//                } else {
-//                    painter.drawPort(offset + out, String.format("O%d", out), Direction.WEST);
-//                }
-//            }
         }
     }
 
@@ -140,7 +165,7 @@ public abstract class RelayBase extends InstanceFactory {
 
         RelayPorts portsInfo = getPorts(polesVal, throwsVal);
 
-        return Bounds.create(0, 0, 40, (portsInfo.inputs - 1) * LATCH_SIZE);
+        return Bounds.create(0, 0, 60, (portsInfo.inputs - 1) * LATCH_SIZE + 10);
     }
 
     @Override
@@ -168,17 +193,19 @@ public abstract class RelayBase extends InstanceFactory {
 
         Port[] ports = new Port[portsInfo.total];
 
+        int bs = 0;
         if (powerLoc == Wiring.GATE_TOP_LEFT) {
-            ports[COIL] = new Port(20, 0, Port.INPUT, StdAttr.WIDTH);
+            bs = 10;
+            ports[COIL] = new Port(30, 0, Port.INPUT, StdAttr.WIDTH);
         } else {
             int height = (portsInfo.inputs - 1) * LATCH_SIZE;
-            ports[COIL] = new Port(20, height, Port.INPUT, StdAttr.WIDTH);
+            ports[COIL] = new Port(30, height + 10, Port.INPUT, StdAttr.WIDTH);
         }
 
         int half = LATCH_SIZE / 2;
 
         for (int in = 1; in < portsInfo.inputs; in++) {
-            ports[in] = new Port(0, in * LATCH_SIZE - half, Port.INPUT, StdAttr.WIDTH);
+            ports[in] = new Port(0, in * LATCH_SIZE - half + bs, Port.INPUT, StdAttr.WIDTH);
         }
 
         int offset = portsInfo.inputs;
@@ -186,13 +213,13 @@ public abstract class RelayBase extends InstanceFactory {
             if (throwsVal == THROWS_DOUBLE) {
                 int in = out / 2 + 1;
                 if (out % 2 == 0) {
-                    ports[offset + out] = new Port(40, (in * LATCH_SIZE - half) - 10, Port.OUTPUT, StdAttr.WIDTH);
+                    ports[offset + out] = new Port(60, (in * LATCH_SIZE - half + bs) - 10, Port.OUTPUT, StdAttr.WIDTH);
                 } else {
-                    ports[offset + out] = new Port(40, (in * LATCH_SIZE - half) + 10, Port.OUTPUT, StdAttr.WIDTH);
+                    ports[offset + out] = new Port(60, (in * LATCH_SIZE - half + bs) + 10, Port.OUTPUT, StdAttr.WIDTH);
                 }
             } else {
                 int in = out + 1;
-                ports[offset + out] = new Port(40, in * LATCH_SIZE - half, Port.OUTPUT, StdAttr.WIDTH);
+                ports[offset + out] = new Port(60, in * LATCH_SIZE - half + bs, Port.OUTPUT, StdAttr.WIDTH);
             }
         }
 
@@ -213,8 +240,16 @@ public abstract class RelayBase extends InstanceFactory {
         return new RelayPorts(numInputs, numOutputs);
     }
 
-    protected void propagateOutputs(InstanceState state, Object throwsVal, RelayPorts portsInfo, BitWidth width, int latch) {
+    protected abstract int getLatchStatus(InstanceState state, boolean update);
+
+    protected void propagateOutputs(InstanceState state, int latch) {
+        Integer polesVal = state.getAttributeValue(ATTR_POLES);
+        Object throwsVal = state.getAttributeValue(ATTR_THROWS);
+        RelayPorts portsInfo = getPorts(polesVal, throwsVal);
+
+        BitWidth width = state.getAttributeValue(StdAttr.WIDTH);
         Value unknown = Value.createUnknown(width);
+
         int offset = portsInfo.inputs;
         for (int in = 0; in < portsInfo.inputs - 1; in++) {
             Value input = state.getPortValue(in + 1);

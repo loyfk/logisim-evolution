@@ -11,14 +11,11 @@ public class RelayLatching extends RelayBase {
     public static RelayLatching FACTORY = new RelayLatching();
 
     public RelayLatching() {
-        super("LatchingRelay", Strings.getter("relayLatchingComponent"));
+        super("RelayLatching", Strings.getter("relayLatchingComponent"));
     }
 
     @Override
-    public void propagate(InstanceState state) {
-
-        Integer polesVal = state.getAttributeValue(ATTR_POLES);
-        Object throwsVal = state.getAttributeValue(ATTR_THROWS);
+    protected int getLatchStatus(InstanceState state, boolean update) {
         Object contactsVal = state.getAttributeValue(ATTR_CONTACTS);
 
         int atRest = contactsVal == CONTACTS_OPEN ? LATCH_OPEN : LATCH_CLOSED;
@@ -30,16 +27,19 @@ public class RelayLatching extends RelayBase {
             state.setData(data);
         }
 
-        RelayPorts portsInfo = getPorts(polesVal, throwsVal);
-
-        BitWidth width = state.getAttributeValue(StdAttr.WIDTH);
         Value coil = state.getPortValue(COIL);
-
-        if (coil.isFullyDefined() && data.updateClock(coil)) {
+        
+        if (coil.isFullyDefined() && update && data.updateClock(coil)) {
             data.flip();
         }
 
-        propagateOutputs(state, throwsVal, portsInfo, width, data.latchStatus);
+        return data.latchStatus;
+    }
+
+    @Override
+    public void propagate(InstanceState state) {
+        int latch = getLatchStatus(state, true);
+        propagateOutputs(state, latch);
     }
 
     private static class StateData implements InstanceData {
